@@ -281,7 +281,8 @@ class MultiHeadedAttention(nn.Module):
             key_i[:, i] = self.linear_k[i](key)
             value_i[:, i] = self.linear_v[i](value)
 
-        a_i = torch.matmul(query_i, torch.transpose(key_i, 2, 3)) / math.sqrt(self.d_k)
+        a_i = torch.matmul(query_i, key_i.transpose(2, 3))
+        a_i /= math.sqrt(self.d_k)
         mask = torch.unsqueeze(mask, 1)
         a_i = a_i * mask - 10**9 * (1 - mask)
         a_i = torch.exp(a_i)
