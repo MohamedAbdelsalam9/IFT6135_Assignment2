@@ -68,6 +68,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # TODO ========================
     # Initialize all the weights uniformly in the range [-0.1, 0.1]
     # and all the biases to 0 (in place)
+    return
 
   def init_hidden(self):
     # TODO ========================
@@ -157,6 +158,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def init_weights_uniform(self):
     # TODO ========================
+    return
 
   def init_hidden(self):
     # TODO ========================
@@ -247,20 +249,40 @@ class MultiHeadedAttention(nn.Module):
         # This requires the number of n_heads to evenly divide n_units.
         assert n_units % n_heads == 0
         self.n_units = n_units 
+        self.n_heads = n_heads
 
         # TODO: create/initialize any necessary parameters or layers
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
-        
+        #### make a new layer for each head
+        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
+        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
+        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
+        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=False)
+
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value all have size: (batch_size, seq_len, self.n_units, self.d_k)
         # mask has size: (batch_size, seq_len, seq_len)
         # As described in the .tex, apply input masking to the softmax 
-        # generating the "attention values" (i.e. A_i in the .tex)
+        # generating the "attention values" (i.e. a_i in the .tex)
         # Also apply dropout to the attention values.
-
-        return # size: (batch_size, seq_len, self.n_units)
+        mask = mask.to(dtype=torch.float32)
+        batch_size = query.shape[0]
+        seq_len = query.shape[1]
+        heads = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k)
+        for i in range(self.n_heads):
+            query_i = self.linear_q[i](query)
+            key_i = self.linear_k[i](key)
+            value_i = self.linear_v[i](value)
+            a_i = torch.bmm(query_i, torch.transpose(key_i, 1, 2)) / math.sqrt(self.d_k)
+            a_i = a_i * mask - 10**9 * (1 - mask)
+            a_i = torch.exp(a_i)
+            a_i = a_i / torch.sum(a_i, -1, keepdim=True)
+            heads[:, :, i] = torch.bmm(a_i, value_i)
+        heads = heads.reshape(batch_size, seq_len, -1)
+        a = self.linear_o(heads)
+        return a    # size: (batch_size, seq_len, self.n_units)
 
 
 
