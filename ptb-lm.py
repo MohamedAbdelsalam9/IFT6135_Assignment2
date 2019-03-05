@@ -121,7 +121,7 @@ parser.add_argument('--hidden_size', type=int, default=512,
                     this must be a multiple of 16.')
 parser.add_argument('--save_best', action='store_true',
                     help='save the model for the best validation performance')
-parser.add_argument('--num_layers', type=int, default=2,
+parser.add_argument('--num_layers', type=int, default=6,
                     help='number of LSTM layers')
 
 # Other hyperparameters you may want to tune in your exploration
