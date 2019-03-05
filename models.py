@@ -271,7 +271,7 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
         heads = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
-        for (linear_q_i, linear_k_i, linear_v_i) in zip(self.linear_q, self.linear_k, self.linear_v):
+        for (linear_q_i, linear_k_i, linear_v_i) in (self.linear_q, self.linear_k, self.linear_v):
             query_i = self.linear_q(query)
             key_i = self.linear_k(key)
             value_i = self.linear_v(value)
