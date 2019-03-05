@@ -60,7 +60,7 @@
 #          --model=TRANSFORMER --optimizer=ADAM --initial_lr=0.001 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=2 --dp_keep_prob=.9
 #    - For Problem 4.3 (exloration of hyperparameters), do your best to get 
 #      better validation perplexities than the settings given for 4.1. You may 
-#      try any combination of the hyperparameters included as arguments in this 
+#      try any combination of the hyperparameters included as arguments in this
 #      script's ArgumentParser, but do not implement any additional 
 #      regularizers/features. You may (and will probably want to) run a lot of 
 #      different things for just 1-5 epochs when you are trying things out, but 
@@ -129,7 +129,7 @@ parser.add_argument('--emb_size', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs to stop after')
-parser.add_argument('--dp_keep_prob', type=float, default=0.35,
+parser.add_argument('--dp_keep_prob', type=float, default=0.9,
                     help='dropout *keep* probability (dp_keep_prob=0 means no dropout')
 
 # Arguments that you may want to make use of / implement more code for
