@@ -272,21 +272,22 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
-        key_i = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
-        value_i = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
-        a_i = torch.zeros(batch_size, seq_len, self.n_heads, seq_len, device=query.device)
-        heads = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
+        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
+        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
+        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
+
         for i in range(self.n_heads):
-            query_i[:, :, i] = self.linear_q[i](query)
-            key_i[:, :, i] = self.linear_k[i](key)
-            value_i[:, :, i] = self.linear_v[i](value)
-            a_i[:, :, i] = torch.bmm(query_i[:, :, i], torch.transpose(key_i[:, :, i], 1, 2)) / math.sqrt(self.d_k)
-            a_i[:, :, i] = a_i[:, :, i] * mask - 10**9 * (1 - mask)
-            a_i[:, :, i] = torch.exp(a_i[:, :, i])
-            a_i[:, :, i] = a_i[:, :, i] / torch.sum(a_i[:, :, i], -1, keepdim=True)
-            heads[:, :, i] = torch.bmm(a_i[:, :, i], value_i[:, :, i])
-        heads = heads.reshape(batch_size, seq_len, -1)
+            query_i[:, i] = self.linear_q[i](query)
+            key_i[:, i] = self.linear_k[i](key)
+            value_i[:, i] = self.linear_v[i](value)
+
+        a_i = torch.matmul(query_i, torch.transpose(key_i, 2, 3)) / math.sqrt(self.d_k)
+        mask = torch.unsqueeze(mask, 1)
+        a_i = a_i * mask - 10**9 * (1 - mask)
+        a_i = torch.exp(a_i)
+        a_i = a_i / torch.sum(a_i, -1, keepdim=True)
+        heads = torch.matmul(a_i, value_i)
+        heads = torch.reshape(heads.transpose(1, 2), (batch_size, seq_len, -1))
         a = self.linear_o(heads)
         a = self.dropout(a)
         return a    # size: (batch_size, seq_len, self.n_units)
