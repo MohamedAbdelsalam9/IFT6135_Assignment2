@@ -271,10 +271,10 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
         heads = torch.zeros(batch_size, seq_len, self.n_heads, self.d_k, device=query.device)
-        for (linear_q_i, linear_k_i, linear_v_i) in (self.linear_q, self.linear_k, self.linear_v):
-            query_i = self.linear_q(query)
-            key_i = self.linear_k(key)
-            value_i = self.linear_v(value)
+        for i in range(self.n_heads):
+            query_i = self.linear_q[i](query)
+            key_i = self.linear_k[i](key)
+            value_i = self.linear_v[i](value)
             a_i = torch.bmm(query_i, torch.transpose(key_i, 1, 2)) / math.sqrt(self.d_k)
             a_i = a_i * mask - 10**9 * (1 - mask)
             a_i = torch.exp(a_i)
