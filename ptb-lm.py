@@ -60,7 +60,7 @@
 #          --model=TRANSFORMER --optimizer=ADAM --initial_lr=0.001 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=2 --dp_keep_prob=.9
 #    - For Problem 4.3 (exloration of hyperparameters), do your best to get 
 #      better validation perplexities than the settings given for 4.1. You may 
-#      try any combination of the hyperparameters included as arguments in this 
+#      try any combination of the hyperparameters included as arguments in this
 #      script's ArgumentParser, but do not implement any additional 
 #      regularizers/features. You may (and will probably want to) run a lot of 
 #      different things for just 1-5 epochs when you are trying things out, but 
@@ -112,7 +112,7 @@ parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
                     help='optimization algo to use; SGD, SGD_LR_SCHEDULE, ADAM')
 parser.add_argument('--seq_len', type=int, default=35,
                     help='number of timesteps over which BPTT is performed')
-parser.add_argument('--batch_size', type=int, default=2,
+parser.add_argument('--batch_size', type=int, default=128,
                     help='size of one minibatch')
 parser.add_argument('--initial_lr', type=float, default=20.0,
                     help='initial learning rate')
@@ -129,7 +129,7 @@ parser.add_argument('--emb_size', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs to stop after')
-parser.add_argument('--dp_keep_prob', type=float, default=0.35,
+parser.add_argument('--dp_keep_prob', type=float, default=0.9,
                     help='dropout *keep* probability (dp_keep_prob=0 means no dropout')
 
 # Arguments that you may want to make use of / implement more code for
@@ -356,79 +356,6 @@ def repackage_hidden(h):
         return tuple(repackage_hidden(v) for v in h)
 
 
-######
-#Add a debugging code
-######
-from graphviz import Digraph
-import torch
-from torch.autograd import Variable, Function
-
-def iter_graph(root, callback):
-    queue = [root]
-    seen = set()
-    while queue:
-        fn = queue.pop()
-        if fn in seen:
-            continue
-        seen.add(fn)
-        for next_fn, _ in fn.next_functions:
-            if next_fn is not None:
-                queue.append(next_fn)
-        callback(fn)
-
-def register_hooks(var):
-    fn_dict = {}
-    def hook_cb(fn):
-        def register_grad(grad_input, grad_output):
-            fn_dict[fn] = grad_input
-        fn.register_hook(register_grad)
-    iter_graph(var.grad_fn, hook_cb)
-
-    def is_bad_grad(grad_output):
-        if grad_output is None:
-            return True
-        grad_output = grad_output.data
-        return grad_output.ne(grad_output).any() or grad_output.gt(1e6).any()
-
-    def make_dot():
-        node_attr = dict(style='filled',
-                        shape='box',
-                        align='left',
-                        fontsize='12',
-                        ranksep='0.1',
-                        height='0.2')
-        dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
-
-        def size_to_str(size):
-            return '('+(', ').join(map(str, size))+')'
-
-        def build_graph(fn):
-            if hasattr(fn, 'variable'):  # if GradAccumulator
-                u = fn.variable
-                node_name = 'Variable\n ' + size_to_str(u.size())
-                dot.node(str(id(u)), node_name, fillcolor='lightblue')
-            else:
-                assert fn in fn_dict, fn
-                fillcolor = 'white'
-                if any(is_bad_grad(gi) for gi in fn_dict[fn]):
-                    fillcolor = 'red'
-                dot.node(str(id(fn)), str(type(fn).__name__), fillcolor=fillcolor)
-            for next_fn, _ in fn.next_functions:
-                if next_fn is not None:
-                    next_id = id(getattr(next_fn, 'variable', next_fn))
-                    dot.edge(str(next_id), str(id(fn)))
-                    pass
-                    #dot.render()
-        iter_graph(var.grad_fn, build_graph)
-
-        return dot
-
-    return make_dot
-
-
-
-
-
 def run_epoch(model, data, is_train=False, lr=1.0):
     """
     One epoch of training/validation (depending on flag is_train).
@@ -473,20 +400,8 @@ def run_epoch(model, data, is_train=False, lr=1.0):
         iters += model.seq_len
         if args.debug:
             print(step, loss)
-        if is_train:  # Only update parameters if training
-            ######
-            # Add a debugging code
-            ######
-            get_dot = register_hooks(loss)
-
+        if is_train:  # Only update parameters if training 
             loss.backward()
-
-            ######
-            # Add a debugging code
-            ######
-            dot = get_dot()
-            dot.save('tmp.dot')
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if args.optimizer == 'ADAM':
                 optimizer.step()
