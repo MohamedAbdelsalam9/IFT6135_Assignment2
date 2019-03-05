@@ -290,7 +290,7 @@ class MultiHeadedAttention(nn.Module):
         heads = torch.matmul(a_i, value_i)
         heads = torch.reshape(heads.transpose(1, 2), (batch_size, seq_len, -1))
         a = self.linear_o(heads)
-        #a = self.dropout(a)
+        a = self.dropout(a)
         return a    # size: (batch_size, seq_len, self.n_units)
 
 
