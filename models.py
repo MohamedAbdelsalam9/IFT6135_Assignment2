@@ -259,7 +259,6 @@ class MultiHeadedAttention(nn.Module):
         self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
         self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
         self.linear_o = nn.Linear(self.n_units, self.n_units, bias=False)
-        self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -283,7 +282,6 @@ class MultiHeadedAttention(nn.Module):
             heads[:, :, i] = torch.bmm(a_i, value_i)
         heads = heads.reshape(batch_size, seq_len, -1)
         a = self.linear_o(heads)
-        a = self.dropout(a)
         return a    # size: (batch_size, seq_len, self.n_units)
 
 
