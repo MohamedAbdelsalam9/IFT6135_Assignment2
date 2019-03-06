@@ -39,9 +39,9 @@ def clones(module, N):
 
     returns:
         a ModuleList with the copies of the module (the ModuleList is itself also a module)
-    "
-    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
     '''
+    return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
+
 
 # Problem 1
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
