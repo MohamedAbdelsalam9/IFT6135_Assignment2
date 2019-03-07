@@ -265,9 +265,9 @@ class MultiHeadedAttention(nn.Module):
         # Note: the only Pytorch modules you are allowed to use are nn.Linear 
         # and nn.Dropout
         #### make a new layer for each head
-        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
-        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
-        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
+        self.linear_q = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.linear_k = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.linear_v = nn.Linear(self.n_units, self.n_units, bias=False)
         self.linear_o = nn.Linear(self.n_units, self.n_units, bias=False)
         self.dropout = nn.Dropout(p=dropout)
 
@@ -282,14 +282,13 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
+        query_i = self.linear_q(query)
+        key_i = self.linear_k(key)
+        value_i = self.linear_v(value)
 
-        for i in range(self.n_heads):
-            query_i[:, i] = self.linear_q[i](query)
-            key_i[:, i] = self.linear_k[i](key)
-            value_i[:, i] = self.linear_v[i](value)
+        query_i = query_i.reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1,2)
+        key_i = key_i.reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        value_i = value_i.reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
         mask = mask.unsqueeze(1)
