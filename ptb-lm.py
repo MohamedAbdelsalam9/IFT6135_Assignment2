@@ -112,7 +112,7 @@ parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
                     help='optimization algo to use; SGD, SGD_LR_SCHEDULE, ADAM')
 parser.add_argument('--seq_len', type=int, default=35,
                     help='number of timesteps over which BPTT is performed')
-parser.add_argument('--batch_size', type=int, default=1,
+parser.add_argument('--batch_size', type=int, default=128,
                     help='size of one minibatch')
 parser.add_argument('--initial_lr', type=float, default=20.0,
                     help='initial learning rate')
