@@ -295,7 +295,7 @@ class MultiHeadedAttention(nn.Module):
         mask = mask.unsqueeze(1)
         a_i = a_i * mask - 10**9 * (1 - mask)
         a_i = torch.exp(a_i)
-        a_i /= torch.sum(a_i, -1, keepdim=True)
+        a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
         heads = heads.transpose(1, 2).reshape((batch_size, seq_len, -1))
         a = self.linear_o(heads)
