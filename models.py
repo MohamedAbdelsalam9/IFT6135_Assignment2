@@ -319,7 +319,7 @@ class WordEmbedding(nn.Module):
 
     def forward(self, x):
         #print (x)
-        return self.lut(x) / math.sqrt(self.n_units)
+        return self.lut(x) * math.sqrt(self.n_units)
 
 
 class PositionalEncoding(nn.Module):
