@@ -42,7 +42,6 @@ def clones(module, N):
     '''
     return nn.ModuleList([copy.deepcopy(module) for _ in range(N)])
 
-
 # Problem 1
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
@@ -74,11 +73,12 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # and compute their gradients automatically. You're not obligated to use the
     # provided clones function.
 
-  def init_weights_uniform(self):
+  def init_weights(self):
     # TODO ========================
-    # Initialize all the weights uniformly in the range [-0.1, 0.1]
-    # and all the biases to 0 (in place)
-    return
+    # Initialize the embedding and output weights uniformly in the range [-0.1, 0.1]
+    # and the embedding and output biases to 0 (in place).
+    # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
+    # in the range [-k, k] where k is the square root of 1/hidden_size
 
   def init_hidden(self):
     # TODO ========================
@@ -90,7 +90,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    # Compute the forward pass, using a nested python for loops.
+    # Compute the forward pass, using nested python for loops.
     # The outer for loop should iterate over timesteps, and the 
     # inner for loop should iterate over hidden layers of the stack. 
     # 
@@ -262,7 +262,9 @@ class MultiHeadedAttention(nn.Module):
         self.n_heads = n_heads
 
         # TODO: create/initialize any necessary parameters or layers
-        # Note: the only Pytorch modules you are allowed to use are nn.Linear 
+        # Initialize all weights and biases uniformly in the range [-k, k],
+        # where k is the square root of 1/n_units.
+        # Note: the only Pytorch modules you are allowed to use are nn.Linear
         # and nn.Dropout
         #### make a new layer for each head
         self.linear_q = nn.Linear(self.n_units, self.n_units, bias=False)
