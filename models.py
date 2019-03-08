@@ -79,6 +79,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # and the embedding and output biases to 0 (in place).
     # Initialize all other (i.e. recurrent and linear) weights AND biases uniformly
     # in the range [-k, k] where k is the square root of 1/hidden_size
+    return
 
   def init_hidden(self):
     # TODO ========================
