@@ -431,11 +431,17 @@ class MultiHeadedAttention(nn.Module):
         # ETA: you can use masked_fill
 
         #### make a new layer for each head
-        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
-        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
-        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
-        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
+        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
+        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
+        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
         self.dropout = nn.Dropout(p=dropout)
+
+        for i in range(self.n_heads):
+            nn.init.zeros_(self.linear_q[i].bias.data)
+            nn.init.zeros_(self.linear_k[i].bias.data)
+            nn.init.zeros_(self.linear_v[i].bias.data)
+        nn.init.zeros_(self.linear_o.bias.data)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
