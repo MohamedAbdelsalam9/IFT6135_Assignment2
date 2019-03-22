@@ -45,7 +45,7 @@ def clones(module, N):
 # Problem 1
 is_cuda = torch.cuda.is_available()
 
-# used to create a recurrent layer 
+# used to create a recurrent layer
 # taking as input the cell object which contains the computation of 1 cell
 # can be gru cell or rnn cell
 # includes dropout on the input
@@ -56,50 +56,50 @@ class RNNLayer(nn.Module):
         self.recurrent_cells = recurrent_cell#clones(recurrent_cell , seq_len)
         self.dropout = nn.Dropout(1-dp_keep_prob)
         self.init_weights()
-    
+
     def init_weights(self):
         self.recurrent_cells.init_weights()
-    
+
     def forward(self,input, hidden_state):
         out_hidden = [hidden_state]
         input = self.dropout(input)
-        for word in range(self.seq_len): 
+        for word in range(self.seq_len):
             hidden_state_out = self.recurrent_cells.forward( input[word,:,:], out_hidden[-1])
             out_hidden.append(hidden_state_out)
         out_hidden.pop(0)
         hidden_state = torch.stack(out_hidden)
         return  hidden_state
 
-# includes recurrent cell computation for a single word processing 
+# includes recurrent cell computation for a single word processing
 # and returns its hidden state to be sent to the next recurrent cell
 class RnnCell(nn.Module):
     def __init__(self, hidden_size, embed_size ):
         super(RnnCell, self).__init__()
         self.hidden_transform = nn.Linear(embed_size + hidden_size , hidden_size)
 
-        self.activation = nn.Tanh() 
+        self.activation = nn.Tanh()
         self.hidden_size = hidden_size
         self.embed_size = embed_size
         self.init_weights()
 
-    
-    def init_weights(self): 
+
+    def init_weights(self):
         init_bound = math.sqrt(1.0/self.hidden_size)
         self.hidden_transform.weight.data.uniform_(-init_bound,init_bound)
         self.hidden_transform.bias.data.uniform_(-init_bound,init_bound)
-    
+
     def forward(self, input, hidden_state):
         #input = self.input_transform(input)
         #hidden_state = input + self.hidden_transform(hidden_state)
         hidden_state = self.hidden_transform(torch.cat((input, hidden_state), 1) )
-        hidden_state = self.activation(hidden_state) 
+        hidden_state = self.activation(hidden_state)
         return  hidden_state
 
 
 class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities.
   def __init__(self, emb_size, hidden_size, seq_len, batch_size, vocab_size, num_layers, dp_keep_prob):
     """
-    emb_size:     The numvwe of units in the input embeddings
+    emb_size:     The number of units in the input embeddings
     hidden_size:  The number of hidden units per layer
     seq_len:      The length of the input sequences
     vocab_size:   The number of tokens in the vocabulary (10,000 for Penn TreeBank)
@@ -130,8 +130,8 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     self.num_layers = num_layers
     self.vocab_size = vocab_size
     self.hidden_size = hidden_size
-    
-    self.embedding = nn.Embedding(vocab_size, emb_size)  
+
+    self.embedding = nn.Embedding(vocab_size, emb_size)
     rnn_cell = RnnCell(hidden_size, emb_size)
     first_rnn_layer = RNNLayer(rnn_cell, seq_len,dp_keep_prob)
     rnn_cell = RnnCell(hidden_size, hidden_size)
@@ -201,7 +201,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
               if you are curious.
                     shape: (num_layers, batch_size, hidden_size)
     """
-    embed_output = self.embedding(inputs) # nwords, batchsize , embed size 
+    embed_output = self.embedding(inputs) # nwords, batchsize , embed size
     # convert its size for faster RNN
     input_tmp = embed_output
     hidden_data = []
@@ -245,7 +245,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
 # Problem 2
 
 # class used to make a single gru celll that returns its hidden state sent to the next cell
-# in the RNNLayer Object 
+# in the RNNLayer Object
 class GruCell(nn.Module):
     def __init__(self, hidden_size, embed_size ):
         super(GruCell, self).__init__()
@@ -259,8 +259,8 @@ class GruCell(nn.Module):
         self.embed_size = embed_size
         self.init_weights()
 
-    
-    def init_weights(self): 
+
+    def init_weights(self):
         init_bound = np.sqrt(1.0/self.hidden_size)
 
         self.update_gate.weight.data.uniform_(-init_bound,init_bound)
@@ -271,11 +271,11 @@ class GruCell(nn.Module):
 
         self.hidden_transform.weight.data.uniform_(-init_bound,init_bound)
         self.hidden_transform.bias.data.uniform_(-init_bound,init_bound)
-    
+
     def forward(self, input, hidden_state):
         update_gate_output = self.update_gate(torch.cat((input, hidden_state),1))
         update_gate_output = self.activation_update_reset(update_gate_output)
-        
+
         reset_gate_output = self.reset_gate(torch.cat((input,hidden_state),1))
         reset_gate_output = self.activation_update_reset(reset_gate_output)
 
@@ -299,8 +299,8 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     self.num_layers = num_layers
     self.vocab_size = vocab_size
     self.hidden_size = hidden_size
-    
-    self.embedding = nn.Embedding(vocab_size, emb_size)  
+
+    self.embedding = nn.Embedding(vocab_size, emb_size)
     gru_cell = GruCell(hidden_size, emb_size)
     first_gru_layer = RNNLayer(gru_cell, seq_len,dp_keep_prob)
     gru_cell = GruCell(hidden_size, hidden_size)
@@ -327,7 +327,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
 
   def forward(self, inputs, hidden):
     # TODO ========================
-    embed_output = self.embedding(inputs) # nwords, batchsize , embed size 
+    embed_output = self.embedding(inputs) # nwords, batchsize , embed size
     input_tmp = embed_output
     hidden_data = []
     for layer in range(self.num_layers):
@@ -409,7 +409,7 @@ class MultiHeadedAttention(nn.Module):
     def __init__(self, n_heads, n_units, dropout=0.1):
         """
         n_heads: the number of attention heads
-        n_units: the number of output units
+        n_units: the number of input and output units
         dropout: probability of DROPPING units
         """
         super(MultiHeadedAttention, self).__init__()
@@ -426,6 +426,10 @@ class MultiHeadedAttention(nn.Module):
         # where k is the square root of 1/n_units.
         # Note: the only Pytorch modules you are allowed to use are nn.Linear
         # and nn.Dropout
+        # ETA: you can also use softmax
+        # ETA: you can use the "clones" function we provide.
+        # ETA: you can use masked_fill
+
         #### make a new layer for each head
         self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
         self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=False) for i in range(self.n_heads)])
@@ -435,7 +439,8 @@ class MultiHeadedAttention(nn.Module):
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
-        # query, key, and value all have size: (batch_size, seq_len, self.n_units)
+        # query, key, and value correspond to Q, K, and V in the latex, and
+        # they all have size: (batch_size, seq_len, self.n_units)
         # mask has size: (batch_size, seq_len, seq_len)
         # As described in the .tex, apply input masking to the softmax
         # generating the "attention values" (i.e. a_i in the .tex)
