@@ -196,7 +196,7 @@ if model_path_dir!='':
 
                 except:
                     args.__dict__[line[0]] = line[1]
-    generated_seq_len = args.seq_len
+    trained_seq_len = args.seq_len
     args.seq_len= 1
     args.batch_size = 10 # number of sequences output
 # Increment a counter so that previous results with the same args will not
@@ -460,16 +460,16 @@ if load_model:
     model.load_state_dict(torch.load(model_path,map_location=device))
     batch_size = 10
     hidden = model.init_hidden().to(device)
-    valid_data = np.array(train_data, dtype=np.int32)
-    data_len = len(valid_data)
-    data = np.zeros([batch_size, 1], dtype=np.int32)
-    
-    batch_len = data_len // batch_size
-    for i in range(batch_size):
-        data[i] = valid_data[batch_len * i]
+    data = np.zeros((batch_size,1))
+    n_filled= 0
+    for step, (x, y) in enumerate(ptb_iterator(valid_data, batch_size, trained_seq_len)):   
+        if n_filled>batch_size-1:
+            break
+        data[n_filled] = x[0,0]
+        n_filled +=1
     data = torch.from_numpy(data.astype(np.int64)).transpose(0,1).contiguous().to(device)
 
-    samples = model.generate(data,hidden,generated_seq_len)
+    samples = model.generate(data,hidden,trained_seq_len)
     for batch_indx in range(samples.shape[1]):
         sequence = samples[:,batch_indx]
         sequence = [id_2_word[word_id] for word_id in sequence]

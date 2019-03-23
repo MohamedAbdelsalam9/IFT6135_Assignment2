@@ -214,18 +214,16 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    burn_in = 5
-    temperature = 2
+    temperature = 100
     logits = input
-    softmax = torch.nn.Softmax(dim=2)
-    samples = np.zeros((generated_seq_len, input.size()[1]))  
-    for seq_indx in range(burn_in + generated_seq_len):
-        logits, hidden = self.forward(input, hidden)
+    samples = np.zeros((generated_seq_len, input.size()[1])) 
+    for seq_indx in range(0,  generated_seq_len):
+        logits, hidden = self.forward(input, hidden) 
         logits = logits.detach().cpu().numpy()
-        probabilities = np.exp(logits/temperature)/np.sum(logits,axis=1)
+        logits = logits - np.max(logits) # to get a stable softmax
+        probabilities = np.exp(logits/temperature)/np.exp(logits/temperature).sum()
         word_indexes = np.argmax(probabilities,2)
-        if seq_indx >=burn_in:
-            samples[seq_indx-burn_in,:] = word_indexes
+        samples[seq_indx,:] = word_indexes 
         input = torch.from_numpy(word_indexes)
         if is_cuda:
             input = input.cuda()
@@ -329,18 +327,16 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    burn_in = 5
-    temperature = 2
+    temperature = 100
     logits = input
-    softmax = torch.nn.Softmax(dim=2)
-    samples = np.zeros((generated_seq_len, input.size()[1]))  
-    for seq_indx in range(burn_in + generated_seq_len):
-        logits, hidden = self.forward(input, hidden)
+    samples = np.zeros((generated_seq_len, input.size()[1])) 
+    for seq_indx in range(0,  generated_seq_len):
+        logits, hidden = self.forward(input, hidden) 
         logits = logits.detach().cpu().numpy()
-        probabilities = np.exp(logits/temperature)/np.sum(logits,axis=1)
+        logits = logits - np.max(logits) # to get a stable softmax
+        probabilities = np.exp(logits/temperature)/np.exp(logits/temperature).sum()
         word_indexes = np.argmax(probabilities,2)
-        if seq_indx >=burn_in:
-            samples[seq_indx-burn_in,:] = word_indexes
+        samples[seq_indx,:] = word_indexes 
         input = torch.from_numpy(word_indexes)
         if is_cuda:
             input = input.cuda()
