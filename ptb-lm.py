@@ -152,6 +152,13 @@ parser.add_argument('--evaluate', action='store_true',
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 
+#arguments for generating samples
+parser.add_argument('--model_dir', type=str, default='',
+                     help='Model directory including file called best_params.pt')
+
+parser.add_argument('--generate_seq_len', type=int, default=10,
+                     help='generated seq length')
+
 args = parser.parse_args()
 argsdict = args.__dict__
 argsdict['code_file'] = sys.argv[0]
@@ -167,6 +174,31 @@ if args.save_dir=='':
 else:
     experiment_path = args.save_dir
 
+model_path_dir = args.model_dir
+load_model = False
+if model_path_dir!='':
+    model_path = os.path.join(model_path_dir, 'best_params.pt')
+    if os.path.exists(model_path):
+        load_model = True
+    else:
+        raise Exception('Model file doesn\'t exist at {}'.format(model_path))
+    
+    # now loading model params and updating args with the model params
+    with open (os.path.join(model_path_dir, 'exp_config.txt'), 'r') as params_file:
+        for line in params_file:
+            line = line.strip().split('    ')
+            if line[0] in args:
+                try:
+                    if '.' in line[1]:
+                        args.__dict__[line[0]] = float(line[1])
+                    else:
+                        args.__dict__[line[0]] = int(line[1])
+
+                except:
+                    args.__dict__[line[0]] = line[1]
+    generated_seq_len = args.seq_len
+    args.seq_len= 1
+    args.batch_size = 10 # number of sequences output
 # Increment a counter so that previous results with the same args will not
 # be overwritten. Comment out the next four lines if you only want to keep
 # the most recent results.
@@ -177,12 +209,14 @@ if os.path.exists(experiment_path):
     experiment_path = experiment_path + "_" + str(i)
 
 # Creates an experimental directory and dumps all the args to a text file
-os.mkdir(experiment_path)
-print ("\nPutting log in %s" % experiment_path)
+if not(load_model):
+    os.mkdir(experiment_path)
+    print ("\nPutting log in %s" % experiment_path)
 argsdict['save_dir'] = experiment_path
-with open (os.path.join(experiment_path, 'exp_config.txt'), 'w') as f:
-    for key in sorted(argsdict):
-        f.write(key + '    ' + str(argsdict[key]) + '\n')
+if not(load_model):
+    with open (os.path.join(experiment_path, 'exp_config.txt'), 'w') as f:
+        for key in sorted(argsdict):
+            f.write(key + '    ' + str(argsdict[key]) + '\n')
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -421,80 +455,101 @@ def run_epoch(model, data, is_train=False, lr=1.0):
     return np.exp(costs / iters), losses
 
 
+if load_model:
+    print('Model loading')
+    model.load_state_dict(torch.load(model_path,map_location=device))
+    batch_size = 10
+    hidden = model.init_hidden().to(device)
+    valid_data = np.array(valid_data, dtype=np.int32)
+    data_len = len(valid_data)
+    data = np.zeros([batch_size, 1], dtype=np.int32)
+    
+    batch_len = data_len // batch_size
+    for i in range(batch_size):
+        data[i] = valid_data[batch_len * i]
+    data = torch.from_numpy(data.astype(np.int64)).transpose(0,1).contiguous().to(device)
 
-###############################################################################
-#
-# RUN MAIN LOOP (TRAIN AND VAL)
-#
-###############################################################################
-
-print("\n########## Running Main Loop ##########################")
-train_ppls = []
-train_losses = []
-val_ppls = []
-val_losses = []
-best_val_so_far = np.inf
-times = []
-
-# In debug mode, only run one epoch
-if args.debug:
-    num_epochs = 1 
+    samples = model.generate(data,hidden,generated_seq_len)
+    for batch_indx in range(samples.shape[1]):
+        sequence = samples[:,batch_indx]
+        sequence = [id_2_word[word_id] for word_id in sequence]
+        print(' '.join(sequence))
+        print('=============================')
 else:
-    num_epochs = args.num_epochs
-
-# MAIN LOOP
-for epoch in range(num_epochs):
-    t0 = time.time()
-    print('\nEPOCH '+str(epoch)+' ------------------')
-    if args.optimizer == 'SGD_LR_SCHEDULE':
-        lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
-        lr = lr * lr_decay # decay lr if it is time
-
-    # RUN MODEL ON TRAINING DATA
-    train_ppl, train_loss = run_epoch(model, train_data, True, lr)
-
-    # RUN MODEL ON VALIDATION DATA
-    val_ppl, val_loss = run_epoch(model, valid_data)
+    ###############################################################################
+    #
+    # RUN MAIN LOOP (TRAIN AND VAL)
+    #
+    ###############################################################################
 
 
-    # SAVE MODEL IF IT'S THE BEST SO FAR
-    if val_ppl < best_val_so_far:
-        best_val_so_far = val_ppl
-        if args.save_best:
-            print("Saving model parameters to best_params.pt")
-            torch.save(model.state_dict(), os.path.join(args.save_dir, 'best_params.pt'))
-        # NOTE ==============================================
-        # You will need to load these parameters into the same model
-        # for a couple Problems: so that you can compute the gradient 
-        # of the loss w.r.t. hidden state as required in Problem 5.2
-        # and to sample from the the model as required in Problem 5.3
-        # We are not asking you to run on the test data, but if you 
-        # want to look at test performance you would load the saved
-        # model and run on the test data with batch_size=1
+    print("\n########## Running Main Loop ##########################")
+    train_ppls = []
+    train_losses = []
+    val_ppls = []
+    val_losses = []
+    best_val_so_far = np.inf
+    times = []
 
-    # LOC RESULTS
-    train_ppls.append(train_ppl)
-    val_ppls.append(val_ppl)
-    train_losses.extend(train_loss)
-    val_losses.extend(val_loss)
-    times.append(time.time() - t0)
-    log_str = 'epoch: ' + str(epoch) + '\t' \
-            + 'train ppl: ' + str(train_ppl) + '\t' \
-            + 'val ppl: ' + str(val_ppl)  + '\t' \
-            + 'best val: ' + str(best_val_so_far) + '\t' \
-            + 'time (s) spent in epoch: ' + str(times[-1])
-    print(log_str)
-    with open (os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
-        f_.write(log_str+ '\n')
+    # In debug mode, only run one epoch
+    if args.debug:
+        num_epochs = 1 
+    else:
+        num_epochs = args.num_epochs
 
-# SAVE LEARNING CURVES
-lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
-print('\nDONE\n\nSaving learning curves to '+lc_path)
-np.save(lc_path, {'train_ppls':train_ppls, 
-                  'val_ppls':val_ppls, 
-                  'train_losses':train_losses,
-                  'val_losses':val_losses})
-# NOTE ==============================================
-# To load these, run 
-# >>> x = np.load(lc_path)[()]
-# You will need these values for plotting learning curves (Problem 4)
+    # MAIN LOOP
+    for epoch in range(num_epochs):
+        t0 = time.time()
+        print('\nEPOCH '+str(epoch)+' ------------------')
+        if args.optimizer == 'SGD_LR_SCHEDULE':
+            lr_decay = lr_decay_base ** max(epoch - m_flat_lr, 0)
+            lr = lr * lr_decay # decay lr if it is time
+
+        # RUN MODEL ON TRAINING DATA
+        train_ppl, train_loss = run_epoch(model, train_data, True, lr)
+
+        # RUN MODEL ON VALIDATION DATA
+        val_ppl, val_loss = run_epoch(model, valid_data)
+
+
+        # SAVE MODEL IF IT'S THE BEST SO FAR
+        if val_ppl < best_val_so_far:
+            best_val_so_far = val_ppl
+            if args.save_best:
+                print("Saving model parameters to best_params.pt")
+                torch.save(model.state_dict(), os.path.join(args.save_dir, 'best_params.pt'))
+            # NOTE ==============================================
+            # You will need to load these parameters into the same model
+            # for a couple Problems: so that you can compute the gradient 
+            # of the loss w.r.t. hidden state as required in Problem 5.2
+            # and to sample from the the model as required in Problem 5.3
+            # We are not asking you to run on the test data, but if you 
+            # want to look at test performance you would load the saved
+            # model and run on the test data with batch_size=1
+
+        # LOC RESULTS
+        train_ppls.append(train_ppl)
+        val_ppls.append(val_ppl)
+        train_losses.extend(train_loss)
+        val_losses.extend(val_loss)
+        times.append(time.time() - t0)
+        log_str = 'epoch: ' + str(epoch) + '\t' \
+                + 'train ppl: ' + str(train_ppl) + '\t' \
+                + 'val ppl: ' + str(val_ppl)  + '\t' \
+                + 'best val: ' + str(best_val_so_far) + '\t' \
+                + 'time (s) spent in epoch: ' + str(times[-1])
+        print(log_str)
+        with open (os.path.join(args.save_dir, 'log.txt'), 'a') as f_:
+            f_.write(log_str+ '\n')
+
+    # SAVE LEARNING CURVES
+    lc_path = os.path.join(args.save_dir, 'learning_curves.npy')
+    print('\nDONE\n\nSaving learning curves to '+lc_path)
+    np.save(lc_path, {'train_ppls':train_ppls, 
+                    'val_ppls':val_ppls, 
+                    'train_losses':train_losses,
+                    'val_losses':val_losses})
+    # NOTE ==============================================
+    # To load these, run 
+    # >>> x = np.load(lc_path)[()]
+    # You will need these values for plotting learning curves (Problem 4)
