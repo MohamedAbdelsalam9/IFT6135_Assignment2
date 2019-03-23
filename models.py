@@ -443,6 +443,17 @@ class MultiHeadedAttention(nn.Module):
             nn.init.zeros_(self.linear_v[i].bias.data)
         nn.init.zeros_(self.linear_o.bias.data)
 
+        self.linear_q = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.linear_k = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.linear_v = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.dropout = nn.Dropout(p=dropout)
+
+        nn.init.zeros_(self.linear_q.bias.data)
+        nn.init.zeros_(self.linear_k.bias.data)
+        nn.init.zeros_(self.linear_v.bias.data)
+        nn.init.zeros_(self.linear_o.bias.data)
+
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
         # query, key, and value correspond to Q, K, and V in the latex, and
@@ -455,14 +466,9 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-
-        for i in range(self.n_heads):
-            query_i[:, i] = self.linear_q[i](query)
-            key_i[:, i] = self.linear_k[i](key)
-            value_i[:, i] = self.linear_v[i](value)
+        query_i = self.linear_q(query).reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        key_i = self.linear_k(key).reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
+        value_i = self.linear_v(value).reshape(batch_size, seq_len, self.n_heads, self.d_k).transpose(1, 2)
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
         mask = mask.unsqueeze(1)
