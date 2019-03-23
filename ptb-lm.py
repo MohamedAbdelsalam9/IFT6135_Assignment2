@@ -460,7 +460,7 @@ if load_model:
     model.load_state_dict(torch.load(model_path,map_location=device))
     batch_size = 10
     hidden = model.init_hidden().to(device)
-    valid_data = np.array(valid_data, dtype=np.int32)
+    valid_data = np.array(train_data, dtype=np.int32)
     data_len = len(valid_data)
     data = np.zeros([batch_size, 1], dtype=np.int32)
     

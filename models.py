@@ -214,20 +214,21 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    burn_in = 30
-    temperature = 10
+    burn_in = 5
+    temperature = 2
     logits = input
     softmax = torch.nn.Softmax(dim=2)
     samples = np.zeros((generated_seq_len, input.size()[1]))  
     for seq_indx in range(burn_in + generated_seq_len):
         logits, hidden = self.forward(input, hidden)
-        if seq_indx<burn_in:
-            continue
-        word_indexes  = logits/temperature
-        word_indexes = softmax(word_indexes)
-        _,word_indexes = torch.max(word_indexes,2)
-        samples[seq_indx-burn_in,:] = word_indexes.cpu().detach().numpy()
-        input = word_indexes
+        logits = logits.detach().cpu().numpy()
+        probabilities = np.exp(logits/temperature)/np.sum(logits,axis=1)
+        word_indexes = np.argmax(probabilities,2)
+        if seq_indx >=burn_in:
+            samples[seq_indx-burn_in,:] = word_indexes
+        input = torch.from_numpy(word_indexes)
+        if is_cuda:
+            input = input.cuda()
     return samples
 
 
@@ -328,20 +329,21 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    burn_in = 30
-    temperature = 10
+    burn_in = 5
+    temperature = 2
     logits = input
     softmax = torch.nn.Softmax(dim=2)
     samples = np.zeros((generated_seq_len, input.size()[1]))  
     for seq_indx in range(burn_in + generated_seq_len):
         logits, hidden = self.forward(input, hidden)
-        if seq_indx<burn_in:
-            continue
-        word_indexes  = logits/temperature
-        word_indexes = softmax(word_indexes)
-        _,word_indexes = torch.max(word_indexes,2)
-        samples[seq_indx-burn_in,:] = word_indexes.cpu().detach().numpy()
-        input = word_indexes
+        logits = logits.detach().cpu().numpy()
+        probabilities = np.exp(logits/temperature)/np.sum(logits,axis=1)
+        word_indexes = np.argmax(probabilities,2)
+        if seq_indx >=burn_in:
+            samples[seq_indx-burn_in,:] = word_indexes
+        input = torch.from_numpy(word_indexes)
+        if is_cuda:
+            input = input.cuda()
     return samples
 
 
