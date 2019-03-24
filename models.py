@@ -448,10 +448,10 @@ class MultiHeadedAttention(nn.Module):
         nn.init.uniform_(self.linear_k.weight, -k, k)
         nn.init.uniform_(self.linear_v.weight, -k, k)
         nn.init.uniform_(self.linear_o.weight, -k, k)
-        nn.init.zeros_(self.bias_q)
-        nn.init.zeros_(self.bias_k)
-        nn.init.zeros_(self.bias_v)
-        nn.init.zeros_(self.linear_o.bias)
+        #nn.init.zeros_(self.bias_q)
+        #nn.init.zeros_(self.bias_k)
+        #nn.init.zeros_(self.bias_v)
+        #nn.init.zeros_(self.linear_o.bias)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
