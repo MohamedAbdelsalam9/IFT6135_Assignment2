@@ -431,9 +431,12 @@ class MultiHeadedAttention(nn.Module):
         # ETA: you can use the "clones" function we provide.
         # ETA: you can use masked_fill
 
-        self.linear_q = nn.Linear(self.n_units, self.n_units, bias=True)
-        self.linear_k = nn.Linear(self.n_units, self.n_units, bias=True)
-        self.linear_v = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.linear_q = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_q = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
+        self.linear_k = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_k = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
+        self.linear_v = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_v = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
         self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
         self.dropout = nn.Dropout(p=dropout)
         self.init_weights()
@@ -445,10 +448,10 @@ class MultiHeadedAttention(nn.Module):
         nn.init.uniform_(self.linear_k.weight, -k, k)
         nn.init.uniform_(self.linear_v.weight, -k, k)
         nn.init.uniform_(self.linear_o.weight, -k, k)
-        nn.init.zeros_(self.linear_q.bias.data)
-        nn.init.zeros_(self.linear_k.bias.data)
-        nn.init.zeros_(self.linear_v.bias.data)
-        nn.init.zeros_(self.linear_o.bias.data)
+        nn.init.zeros_(self.bias_q)
+        nn.init.zeros_(self.bias_k)
+        nn.init.zeros_(self.bias_v)
+        nn.init.zeros_(self.linear_o.bias)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -458,18 +461,20 @@ class MultiHeadedAttention(nn.Module):
         # As described in the .tex, apply input masking to the softmax
         # generating the "attention values" (i.e. a_i in the .tex)
         # Also apply dropout to the attention values.
-        #mask = mask.to(dtype=torch.float32)
+        mask = mask.to(dtype=torch.float32)
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = self.linear_q(query).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
-        key_i = self.linear_k(key).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
-        value_i = self.linear_v(value).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        query_i = self.linear_q(query).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        key_i = self.linear_k(key).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        value_i = self.linear_v(value).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        query_i = query_i + self.bias_k
+        key_i = key_i + self.bias_k
+        value_i = value_i + self.bias_k
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
         mask = mask.unsqueeze(0)
-        a_i = a_i.masked_fill_(~mask, -10**9)
-        #a_i = a_i * mask #- 10**9 * (1 - mask)
+        a_i = a_i * mask - 10**9 * (1 - mask)
         a_i = torch.exp(a_i - a_i.max(dim=-1)[0].unsqueeze(-1))
         a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
@@ -577,10 +582,11 @@ def make_model(vocab_size, n_blocks=6,
         vocab_size=vocab_size
         )
     
-    # Initialize parameters with Glorot / fan_avg.
-    for p in model.parameters():
-        if p.dim() > 1:
-            nn.init.xavier_uniform_(p)
+    # Initialize parameters with Glorot / fan_avg (except for the attention modules which are already initialized)
+    for name, p in model.named_parameters():
+        if 'self_attn' not in name:
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
     return model
 
 
