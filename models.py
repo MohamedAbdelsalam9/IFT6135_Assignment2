@@ -430,25 +430,20 @@ class MultiHeadedAttention(nn.Module):
         # ETA: you can use the "clones" function we provide.
         # ETA: you can use masked_fill
 
-        #### make a new layer for each head
-        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
-        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
-        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
-        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
-        self.dropout = nn.Dropout(p=dropout)
-
-        for i in range(self.n_heads):
-            nn.init.zeros_(self.linear_q[i].bias.data)
-            nn.init.zeros_(self.linear_k[i].bias.data)
-            nn.init.zeros_(self.linear_v[i].bias.data)
-        nn.init.zeros_(self.linear_o.bias.data)
-
         self.linear_q = nn.Linear(self.n_units, self.n_units, bias=True)
         self.linear_k = nn.Linear(self.n_units, self.n_units, bias=True)
         self.linear_v = nn.Linear(self.n_units, self.n_units, bias=True)
         self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
         self.dropout = nn.Dropout(p=dropout)
+        self.init_weights()
 
+
+    def init_weights(self):
+        k = 1 / math.sqrt(n_units)
+        nn.init.uniform_(self.linear_q.weight, -k, k)
+        nn.init.uniform_(self.linear_k.weight, -k, k)
+        nn.init.uniform_(self.linear_v.weight, -k, k)
+        nn.init.uniform_(self.linear_o.weight, -k, k)
         nn.init.zeros_(self.linear_q.bias.data)
         nn.init.zeros_(self.linear_k.bias.data)
         nn.init.zeros_(self.linear_v.bias.data)
