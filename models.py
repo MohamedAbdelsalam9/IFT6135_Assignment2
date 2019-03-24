@@ -460,22 +460,22 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
-        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device)
+        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3) #n_heads, batch_size, seq_len, d_k)
+        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3)
+        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3)
 
         for i in range(self.n_heads):
-            query_i[:, i] = self.linear_q[i](query)
-            key_i[:, i] = self.linear_k[i](key)
-            value_i[:, i] = self.linear_v[i](value)
+            query_i[i] = self.linear_q[i](query)
+            key_i[i] = self.linear_k[i](key)
+            value_i[i] = self.linear_v[i](value)
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
-        mask = mask.unsqueeze(1)
+        mask = mask.unsqueeze(0)
         a_i = a_i * mask - 10**9 * (1 - mask)
         a_i = torch.exp(a_i - a_i.max(dim=-1)[0].unsqueeze(-1))
         a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
-        heads = heads.transpose(1, 2).reshape((batch_size, seq_len, -1))
+        heads = heads.permute(1,2,0,3).reshape((batch_size, seq_len, -1))
         a = self.linear_o(heads)
         a = self.dropout(a)
         return a    # size: (batch_size, seq_len, self.n_units)
