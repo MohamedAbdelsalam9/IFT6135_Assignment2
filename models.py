@@ -470,7 +470,7 @@ class MultiHeadedAttention(nn.Module):
         value_i = self.linear_v(value).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
         query_i = query_i + self.bias_k
         key_i = key_i + self.bias_k
-        value_i = value_i + self.bias_k
+        value_i = value_i + self.bias_v
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
         mask = mask.unsqueeze(0)
