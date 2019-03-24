@@ -471,7 +471,6 @@ class MultiHeadedAttention(nn.Module):
         a_i = a_i.masked_fill_(~mask, -10**9)
         #a_i = a_i * mask #- 10**9 * (1 - mask)
         a_i = torch.exp(a_i - a_i.max(dim=-1)[0].unsqueeze(-1))
-        a_i = a_i.masked_fill_(~mask, 0)
         a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
         heads = heads.permute(1, 2, 0, 3).reshape((batch_size, seq_len, -1))
