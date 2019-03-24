@@ -458,17 +458,18 @@ class MultiHeadedAttention(nn.Module):
         # As described in the .tex, apply input masking to the softmax
         # generating the "attention values" (i.e. a_i in the .tex)
         # Also apply dropout to the attention values.
-        mask = mask.to(dtype=torch.float32)
+        #mask = mask.to(dtype=torch.float32)
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = self.linear_q(query).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)#.contiguous().view(-1,seq_len,self.d_k)
-        key_i = self.linear_k(key).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)#.contiguous().view(-1,seq_len,self.d_k)
-        value_i = self.linear_v(value).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)#.contiguous().view(-1,seq_len,self.d_k)
+        query_i = self.linear_q(query).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        key_i = self.linear_k(key).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        value_i = self.linear_v(value).view(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
-        mask = mask.unsqueeze(0).repeat(self.n_heads,1,1,1)#.reshape(batch_size, self.n_heads, seq_len, seq_len)
-        a_i = a_i * mask - 10**9 * (1 - mask)
+        mask = mask.unsqueeze(0)
+        a_i = a_i.masked_fill_(~mask, 0)
+        #a_i = a_i * mask - 10**9 * (1 - mask)
         a_i = torch.exp(a_i - a_i.max(dim=-1)[0].unsqueeze(-1))
         a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
