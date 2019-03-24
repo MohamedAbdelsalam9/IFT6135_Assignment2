@@ -431,10 +431,12 @@ class MultiHeadedAttention(nn.Module):
         # ETA: you can use the "clones" function we provide.
         # ETA: you can use masked_fill
 
-        #### make a new layer for each head
-        self.linear_q = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
-        self.linear_k = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
-        self.linear_v = nn.ModuleList([nn.Linear(self.n_units, self.d_k, bias=True) for i in range(self.n_heads)])
+        self.linear_q = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_q = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
+        self.linear_k = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_k = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
+        self.linear_v = nn.Linear(self.n_units, self.n_units, bias=False)
+        self.bias_v = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
         self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
         self.dropout = nn.Dropout(p=dropout)
         self.init_weights()
@@ -442,12 +444,15 @@ class MultiHeadedAttention(nn.Module):
 
     def init_weights(self):
         #k = 1 / math.sqrt(self.n_units)
+        k = math.sqrt(6/(self.n_units + self.d_k)) #glorot initialization for the heads
+        k_ = math.sqrt(6/(self.n_units + self.n_units)) #glorot initialization for the output layer
         for name, p in self.named_parameters():
             if 'bias' in name:
                 nn.init.zeros_(p)
+            elif 'linear_o.weight' in name:
+                nn.init.uniform_(p, -k_, k_)
             else:
-                #nn.init.uniform_(p, -k, k)
-                nn.init.xavier_uniform_(p)
+                nn.init.uniform_(p, -k, k)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
@@ -461,14 +466,12 @@ class MultiHeadedAttention(nn.Module):
         batch_size = query.shape[0]
         seq_len = query.shape[1]
 
-        query_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3) #n_heads, batch_size, seq_len, d_k)
-        key_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3)
-        value_i = torch.zeros(batch_size, self.n_heads, seq_len, self.d_k, device=query.device).permute(1,0,2,3)
-
-        for i in range(self.n_heads):
-            query_i[i] = self.linear_q[i](query)
-            key_i[i] = self.linear_k[i](key)
-            value_i[i] = self.linear_v[i](value)
+        query_i = self.linear_q(query).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3) #n_heads, batch_size, seq_len, d_k)
+        key_i = self.linear_k(key).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        value_i = self.linear_v(value).reshape(batch_size, seq_len, self.n_heads, self.d_k).permute(2, 0, 1, 3)
+        query_i = query_i + self.bias_q
+        key_i = key_i + self.bias_k
+        value_i = value_i + self.bias_v
 
         a_i = torch.matmul(query_i, key_i.transpose(-2, -1)) / math.sqrt(self.d_k)
         mask = mask.unsqueeze(0)
@@ -476,7 +479,7 @@ class MultiHeadedAttention(nn.Module):
         a_i = torch.exp(a_i - a_i.max(dim=-1)[0].unsqueeze(-1))
         a_i = a_i / torch.sum(a_i, -1, keepdim=True)
         heads = torch.matmul(a_i, value_i)
-        heads = heads.permute(1,2,0,3).reshape((batch_size, seq_len, -1))
+        heads = heads.permute(1, 2, 0, 3).reshape((batch_size, seq_len, -1))
         a = self.linear_o(heads)
         a = self.dropout(a)
         return a    # size: (batch_size, seq_len, self.n_units)
