@@ -441,12 +441,13 @@ class MultiHeadedAttention(nn.Module):
 
 
     def init_weights(self):
-        k = 1 / math.sqrt(self.n_units)
+        #k = 1 / math.sqrt(self.n_units)
         for name, p in self.named_parameters():
             if 'bias' in name:
                 nn.init.zeros_(p)
             else:
-                nn.init.uniform_(p, -k, k)
+                #nn.init.uniform_(p, -k, k)
+                nn.init.xavier_uniform_(p)
 
     def forward(self, query, key, value, mask=None):
         # TODO: implement the masked multi-head attention.
