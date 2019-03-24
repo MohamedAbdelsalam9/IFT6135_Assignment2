@@ -60,7 +60,7 @@
 #          --model=TRANSFORMER --optimizer=ADAM --initial_lr=0.001 --batch_size=128 --seq_len=35 --hidden_size=512 --num_layers=2 --dp_keep_prob=.9
 #    - For Problem 4.3 (exloration of hyperparameters), do your best to get 
 #      better validation perplexities than the settings given for 4.1. You may 
-#      try any combination of the hyperparameters included as arguments in this
+#      try any combination of the hyperparameters included as arguments in this 
 #      script's ArgumentParser, but do not implement any additional 
 #      regularizers/features. You may (and will probably want to) run a lot of 
 #      different things for just 1-5 epochs when you are trying things out, but 
@@ -106,23 +106,24 @@ parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Mod
 
 # Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--data', type=str, default='data',
-                    help='location of the data corpus')
-parser.add_argument('--model', type=str, default='TRANSFORMER',
+                    help='location of the data corpus. We suggest you change the default\
+                    here, rather than passing as an argument, to avoid long file paths.')
+parser.add_argument('--model', type=str, default='GRU',
                     help='type of recurrent net (RNN, GRU, TRANSFORMER)')
 parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
                     help='optimization algo to use; SGD, SGD_LR_SCHEDULE, ADAM')
 parser.add_argument('--seq_len', type=int, default=35,
                     help='number of timesteps over which BPTT is performed')
-parser.add_argument('--batch_size', type=int, default=128,
+parser.add_argument('--batch_size', type=int, default=20,
                     help='size of one minibatch')
 parser.add_argument('--initial_lr', type=float, default=20.0,
                     help='initial learning rate')
-parser.add_argument('--hidden_size', type=int, default=512,
+parser.add_argument('--hidden_size', type=int, default=200,
                     help='size of hidden layers. IMPORTANT: for the transformer\
                     this must be a multiple of 16.')
 parser.add_argument('--save_best', action='store_true',
                     help='save the model for the best validation performance')
-parser.add_argument('--num_layers', type=int, default=6,
+parser.add_argument('--num_layers', type=int, default=2,
                     help='number of hidden layers in RNN/GRU, or number of transformer blocks in TRANSFORMER')
 
 # Other hyperparameters you may want to tune in your exploration
@@ -130,7 +131,7 @@ parser.add_argument('--emb_size', type=int, default=200,
                     help='size of word embeddings')
 parser.add_argument('--num_epochs', type=int, default=40,
                     help='number of epochs to stop after')
-parser.add_argument('--dp_keep_prob', type=float, default=0.9,
+parser.add_argument('--dp_keep_prob', type=float, default=0.35,
                     help='dropout *keep* probability. drop_prob = 1-dp_keep_prob \
                     (dp_keep_prob=1 means no dropout)')
 
@@ -147,7 +148,7 @@ parser.add_argument('--evaluate', action='store_true',
                     completed ALL hyperparameter tuning on the validation set.\
                     Note we are not requiring you to do this.")
 
-# DO NOT CHANGE THIS (setting the random seed makes experiments deterministic,
+# DO NOT CHANGE THIS (setting the random seed makes experiments deterministic, 
 # which helps for reproducibility)
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
@@ -156,29 +157,34 @@ args = parser.parse_args()
 argsdict = args.__dict__
 argsdict['code_file'] = sys.argv[0]
 
-# Use the model, optimizer, and the flags passed to the script to make the
+# Use the model, optimizer, and the flags passed to the script to make the 
 # name for the experimental dir
 print("\n########## Setting Up Experiment ######################")
 flags = [flag.lstrip('--').replace('/', '').replace('\\', '') for flag in sys.argv[1:]]
-experiment_path = os.path.join(args.save_dir + '_'.join([argsdict['model'],
-                                                         argsdict['optimizer']]
-                                                        + flags))
+
+if args.save_dir=='':
+    experiment_path = os.path.join(args.save_dir + '_'.join([argsdict['model'],
+                                                            argsdict['optimizer']]
+                                                            + flags))
+else:
+    experiment_path = args.save_dir
 
 # Increment a counter so that previous results with the same args will not
 # be overwritten. Comment out the next four lines if you only want to keep
 # the most recent results.
-i = 0
-while os.path.exists(experiment_path + "_" + str(i)):
-    i += 1
-experiment_path = experiment_path + "_" + str(i)
+if os.path.exists(experiment_path):
+    i = 0
+    while os.path.exists(experiment_path + "_" + str(i)):
+        i += 1
+    experiment_path = experiment_path + "_" + str(i)
 
 # Creates an experimental directory and dumps all the args to a text file
 os.mkdir(experiment_path)
-print ("\nPutting log in %s" % experiment_path)
+print ("\nPutting log in %s"%experiment_path)
 argsdict['save_dir'] = experiment_path
-with open (os.path.join(experiment_path, 'exp_config.txt'), 'w') as f:
+with open (os.path.join(experiment_path,'exp_config.txt'), 'w') as f:
     for key in sorted(argsdict):
-        f.write(key + '    ' + str(argsdict[key]) + '\n')
+        f.write(key+'    '+str(argsdict[key])+'\n')
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -186,7 +192,7 @@ torch.manual_seed(args.seed)
 # Use the GPU if you have one
 if torch.cuda.is_available():
     print("Using the GPU")
-    device = torch.device("cuda")
+    device = torch.device("cuda") 
 else:
     print("WARNING: You are about to run on cpu, and this will likely run out \
       of memory. \n You can try setting batch_size=1 to reduce memory usage")
@@ -202,7 +208,7 @@ else:
 # HELPER FUNCTIONS
 def _read_words(filename):
     with open(filename, "r") as f:
-        return f.read().replace("\n", "<eos>").split()
+      return f.read().replace("\n", "<eos>").split()
 
 def _build_vocab(filename):
     data = _read_words(filename)
@@ -248,8 +254,8 @@ def ptb_iterator(raw_data, batch_size, num_steps):
         raise ValueError("epoch_size == 0, decrease batch_size or num_steps")
 
     for i in range(epoch_size):
-        x = data[:, i * num_steps:(i + 1) * num_steps]
-        y = data[:, i * num_steps + 1:(i + 1) * num_steps + 1]
+        x = data[:, i*num_steps:(i+1)*num_steps]
+        y = data[:, i*num_steps+1:(i+1)*num_steps+1]
         yield (x, y)
 
 
@@ -258,7 +264,7 @@ class Batch:
     def __init__(self, x, pad=-1):
         self.data = x
         self.mask = self.make_mask(self.data, pad)
-
+    
     @staticmethod
     def make_mask(data, pad):
         "Create a mask to hide future words."
@@ -276,14 +282,15 @@ class Batch:
 
 
 # LOAD DATA
-print('Loading data from ' + args.data)
+print('Loading data from '+args.data)
 raw_data = ptb_raw_data(data_path=args.data)
 train_data, valid_data, test_data, word_to_id, id_2_word = raw_data
 vocab_size = len(word_to_id)
 print('  vocabulary size: {}'.format(vocab_size))
 
+
 ###############################################################################
-#
+# 
 # MODEL SETUP
 #
 ###############################################################################
@@ -293,14 +300,14 @@ print('  vocabulary size: {}'.format(vocab_size))
 # if required for your implementation, but it should not typically be necessary,
 # and you must let the TAs know if you do so.
 if args.model == 'RNN':
-    model = RNN(emb_size=args.emb_size, hidden_size=args.hidden_size,
+    model = RNN(emb_size=args.emb_size, hidden_size=args.hidden_size, 
                 seq_len=args.seq_len, batch_size=args.batch_size,
-                vocab_size=vocab_size, num_layers=args.num_layers,
-                dp_keep_prob=args.dp_keep_prob)
+                vocab_size=vocab_size, num_layers=args.num_layers, 
+                dp_keep_prob=args.dp_keep_prob) 
 elif args.model == 'GRU':
-    model = GRU(emb_size=args.emb_size, hidden_size=args.hidden_size,
+    model = GRU(emb_size=args.emb_size, hidden_size=args.hidden_size, 
                 seq_len=args.seq_len, batch_size=args.batch_size,
-                vocab_size=vocab_size, num_layers=args.num_layers,
+                vocab_size=vocab_size, num_layers=args.num_layers, 
                 dp_keep_prob=args.dp_keep_prob)
 elif args.model == 'TRANSFORMER':
     if args.debug:  # use a very small model
