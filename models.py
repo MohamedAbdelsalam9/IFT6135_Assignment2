@@ -440,7 +440,7 @@ class MultiHeadedAttention(nn.Module):
 
 
     def init_weights(self):
-        k = 1 / math.sqrt(n_units)
+        k = 1 / math.sqrt(self.n_units)
         nn.init.uniform_(self.linear_q.weight, -k, k)
         nn.init.uniform_(self.linear_k.weight, -k, k)
         nn.init.uniform_(self.linear_v.weight, -k, k)
