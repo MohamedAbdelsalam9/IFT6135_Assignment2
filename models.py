@@ -437,7 +437,7 @@ class MultiHeadedAttention(nn.Module):
         self.bias_k = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
         self.linear_v = nn.Linear(self.n_units, self.n_units, bias=False)
         self.bias_v = nn.Parameter(torch.zeros(n_heads, 1, 1, 1))
-        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=True)
+        self.linear_o = nn.Linear(self.n_units, self.n_units, bias=False)
         self.dropout = nn.Dropout(p=dropout)
         self.init_weights()
 
