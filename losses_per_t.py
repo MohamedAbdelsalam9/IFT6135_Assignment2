@@ -247,7 +247,7 @@ def get_loss_per_t(model, data):
 
     return losses_per_t_
 
-loss_per_t = get_loss_per_t(model, data)
+loss_per_t = get_loss_per_t(model, valid_data)
 
 plt.style.use('ggplot')
 
