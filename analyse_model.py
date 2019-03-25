@@ -89,6 +89,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Perplexity')
 plt.savefig(os.path.join(model_path_dir,'perplexity_epochs.png'))
 plt.close()
+plt.clf()
 
 plt.plot(wall_clock_time, train_ppls )
 plt.plot(wall_clock_time, val_ppls )
