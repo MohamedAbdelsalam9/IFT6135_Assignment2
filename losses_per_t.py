@@ -144,7 +144,7 @@ if model_path_dir!='':
 else:
     raise Exception('You must enter the saved model dir --model_dir')
 
-model = torch.load(model_path_dir)
+model = torch.load(model_path)
 model.batch_size=args.batch_size
 model = model.to(device)
 loss_fn = nn.CrossEntropyLoss()
