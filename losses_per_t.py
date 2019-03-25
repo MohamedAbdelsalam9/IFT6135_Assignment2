@@ -1,5 +1,4 @@
 import argparse
-import time
 import collections
 import os
 import sys
@@ -15,7 +14,6 @@ from models import RNN, GRU
 from models import make_model as TRANSFORMER
 
 import matplotlib.pyplot as plt
-from prettytable import PrettyTable
 
 parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Modeling')
 
@@ -183,7 +181,6 @@ elif args.model == 'GRU':
                 vocab_size=vocab_size, num_layers=args.num_layers,
                 dp_keep_prob=args.dp_keep_prob)
 elif args.model == 'TRANSFORMER':
-
     model = TRANSFORMER(vocab_size=vocab_size, n_units=args.hidden_size,
                             n_blocks=args.num_layers, dropout=1.-args.dp_keep_prob)
     # these 3 attributes don't affect the Transformer's computations;
@@ -198,7 +195,7 @@ model = model.to(device)
 
 
 # LOAD Model
-model_path_dir = args.model_dir
+model_path_dir = args.model_dir.replace("'", "").replace('\\', '')
 if model_path_dir!='':
     model_path = os.path.join(model_path_dir, 'best_params.pt')
     if not(os.path.exists(model_path_dir)):
@@ -208,7 +205,10 @@ if model_path_dir!='':
 else:
     raise Exception('You must enter the saved model dir --model_dir')
 
-state_dict = torch.load(model_path)
+if torch.cuda.is_available():
+    state_dict = torch.load(model_path)
+else:
+    state_dict = torch.load(model_path, map_location='cpu')
 model.load_state_dict(state_dict)
 loss_fn = nn.CrossEntropyLoss()
 
@@ -252,7 +252,7 @@ loss_per_t = get_loss_per_t(model, valid_data)
 plt.style.use('ggplot')
 
 # plot train/val loss vs epoch
-plt.plot(model.seq_len, loss_per_t)
+plt.plot(range(1,len(loss_per_t)), loss_per_t)
 plt.xlabel('time step')
 plt.ylabel('loss')
 plt.savefig(os.path.join(model_path_dir,'loss_per_t.png'))
