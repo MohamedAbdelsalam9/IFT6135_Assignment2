@@ -24,8 +24,7 @@ parser.add_argument('--batch_size', type=int, default=128,
                     help='size of one minibatch')
 parser.add_argument('--model_dir', type=str, default='',
                      help='Model directory including file called best_params.pt')
- parser.add_argument('--seed', type=int, default=1111,
-                    help='random seed')
+parser.add_argument('--seed', type=int, default=1111, help='random seed')
 
 args = parser.parse_args()
 argsdict = args.__dict__
