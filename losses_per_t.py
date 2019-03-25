@@ -138,7 +138,7 @@ model_path_dir = args.model_dir
 if model_path_dir!='':
     model_path = os.path.join(model_path_dir, 'best_params.pt')
     if not(os.path.exists(model_path_dir)):
-        raise Exception('folder doesn't exist {}'.format(model_path_dir))
+        raise Exception('folder doesn\'t exist {}'.format(model_path_dir))
     elif not(os.path.exists(model_path)):
         raise Exception('Model file doesn\'t exist at {}'.format(model_path))
 else:
