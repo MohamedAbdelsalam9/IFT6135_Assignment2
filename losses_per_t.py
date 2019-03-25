@@ -16,12 +16,35 @@ parser = argparse.ArgumentParser(description='PyTorch Penn Treebank Language Mod
 
 
 
-# Arguments
+# Arguments you may need to set to run different experiments in 4.1 & 4.2.
 parser.add_argument('--data', type=str, default='data',
                     help='location of the data corpus. We suggest you change the default\
                     here, rather than passing as an argument, to avoid long file paths.')
-parser.add_argument('--batch_size', type=int, default=128,
+parser.add_argument('--model', type=str, default='TRANSFORMER',
+                    help='type of recurrent net (RNN, GRU, TRANSFORMER)')
+parser.add_argument('--optimizer', type=str, default='SGD_LR_SCHEDULE',
+                    help='optimization algo to use; SGD, SGD_LR_SCHEDULE, ADAM')
+parser.add_argument('--seq_len', type=int, default=35,
+                    help='number of timesteps over which BPTT is performed')
+parser.add_argument('--batch_size', type=int, default=2,
                     help='size of one minibatch')
+parser.add_argument('--initial_lr', type=float, default=20.0,
+                    help='initial learning rate')
+parser.add_argument('--hidden_size', type=int, default=512,
+                    help='size of hidden layers. IMPORTANT: for the transformer\
+                    this must be a multiple of 16.')
+parser.add_argument('--save_best', action='store_true',
+                    help='save the model for the best validation performance')
+parser.add_argument('--num_layers', type=int, default=6,
+                    help='number of hidden layers in RNN/GRU, or number of transformer blocks in TRANSFORMER')
+parser.add_argument('--emb_size', type=int, default=200,
+                    help='size of word embeddings')
+parser.add_argument('--num_epochs', type=int, default=40,
+                    help='number of epochs to stop after')
+parser.add_argument('--dp_keep_prob', type=float, default=0.9,
+                    help='dropout *keep* probability. drop_prob = 1-dp_keep_prob \
+                    (dp_keep_prob=1 means no dropout)')
+
 parser.add_argument('--model_dir', type=str, default='',
                      help='Model directory including file called best_params.pt')
 parser.add_argument('--seed', type=int, default=1111, help='random seed')
@@ -133,6 +156,48 @@ train_data, valid_data, test_data, word_to_id, id_2_word = raw_data
 vocab_size = len(word_to_id)
 print('  vocabulary size: {}'.format(vocab_size))
 
+
+###############################################################################
+#
+# MODEL SETUP
+#
+###############################################################################
+
+# NOTE ==============================================
+# This is where your model code will be called. You may modify this code
+# if required for your implementation, but it should not typically be necessary,
+# and you must let the TAs know if you do so.
+if args.model == 'RNN':
+    model = RNN(emb_size=args.emb_size, hidden_size=args.hidden_size,
+                seq_len=args.seq_len, batch_size=args.batch_size,
+                vocab_size=vocab_size, num_layers=args.num_layers,
+                dp_keep_prob=args.dp_keep_prob)
+elif args.model == 'GRU':
+    model = GRU(emb_size=args.emb_size, hidden_size=args.hidden_size,
+                seq_len=args.seq_len, batch_size=args.batch_size,
+                vocab_size=vocab_size, num_layers=args.num_layers,
+                dp_keep_prob=args.dp_keep_prob)
+elif args.model == 'TRANSFORMER':
+    if args.debug:  # use a very small model
+        model = TRANSFORMER(vocab_size=vocab_size, n_units=16, n_blocks=2)
+    else:
+        # Note that we're using num_layers and hidden_size to mean slightly
+        # different things here than in the RNNs.
+        # Also, the Transformer also has other hyperparameters
+        # (such as the number of attention heads) which can change it's behavior.
+        model = TRANSFORMER(vocab_size=vocab_size, n_units=args.hidden_size,
+                            n_blocks=args.num_layers, dropout=1.-args.dp_keep_prob)
+    # these 3 attributes don't affect the Transformer's computations;
+    # they are only used in run_epoch
+    model.batch_size=args.batch_size
+    model.seq_len=args.seq_len
+    model.vocab_size=vocab_size
+else:
+  print("Model type not recognized.")
+
+model = model.to(device)
+
+
 # LOAD Model
 model_path_dir = args.model_dir
 if model_path_dir!='':
@@ -144,9 +209,8 @@ if model_path_dir!='':
 else:
     raise Exception('You must enter the saved model dir --model_dir')
 
-model = torch.load(model_path)
-model.batch_size=args.batch_size
-model = model.to(device)
+state_dict = torch.load(model_path)
+model.load_state_dict(state_dict)
 loss_fn = nn.CrossEntropyLoss()
 
 def get_loss_per_t(model, data):
