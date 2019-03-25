@@ -178,14 +178,8 @@ elif args.model == 'GRU':
                 vocab_size=vocab_size, num_layers=args.num_layers,
                 dp_keep_prob=args.dp_keep_prob)
 elif args.model == 'TRANSFORMER':
-    if args.debug:  # use a very small model
-        model = TRANSFORMER(vocab_size=vocab_size, n_units=16, n_blocks=2)
-    else:
-        # Note that we're using num_layers and hidden_size to mean slightly
-        # different things here than in the RNNs.
-        # Also, the Transformer also has other hyperparameters
-        # (such as the number of attention heads) which can change it's behavior.
-        model = TRANSFORMER(vocab_size=vocab_size, n_units=args.hidden_size,
+
+    model = TRANSFORMER(vocab_size=vocab_size, n_units=args.hidden_size,
                             n_blocks=args.num_layers, dropout=1.-args.dp_keep_prob)
     # these 3 attributes don't affect the Transformer's computations;
     # they are only used in run_epoch
