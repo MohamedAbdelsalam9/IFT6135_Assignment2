@@ -8,7 +8,12 @@ import torch.nn
 from torch.autograd import Variable
 import torch.nn as nn
 import numpy as np
-import re
+
+# NOTE ==============================================
+# This is where your models are imported
+from models import RNN, GRU
+from models import make_model as TRANSFORMER
+
 import matplotlib.pyplot as plt
 from prettytable import PrettyTable
 
