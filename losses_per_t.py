@@ -55,7 +55,28 @@ parser.add_argument('--seed', type=int, default=1111, help='random seed')
 args = parser.parse_args()
 argsdict = args.__dict__
 argsdict['code_file'] = sys.argv[0]
+model_path_dir = args.model_dir
+if model_path_dir!='':
+    model_path = os.path.join(model_path_dir, 'best_params.pt')
+    if not(os.path.exists(model_path)):
+        raise Exception('Model file doesn\'t exist at {}'.format(model_path))
+    
+    # now loading model params and updating args with the model params
+    with open (os.path.join(model_path_dir, 'exp_config.txt'), 'r') as params_file:
+        for line in params_file:
+            line = line.strip().split('    ')
+            if line[0] in args:
+                try:
+                    if '.' in line[1]:
+                        args.__dict__[line[0]] = float(line[1])
+                    else:
+                        args.__dict__[line[0]] = int(line[1])
 
+                except:
+                    args.__dict__[line[0]] = line[1]
+    trained_seq_len = args.seq_len
+else:
+    raise Exception('You must enter the saved model dir --model_dir')
 
 # Set the random seed manually for reproducibility.
 torch.manual_seed(args.seed)
@@ -212,7 +233,8 @@ else:
 model.load_state_dict(state_dict)
 loss_fn = nn.CrossEntropyLoss()
 
-def get_loss_per_t(model, data):
+
+def get_loss_batch_grad_per_t(model, data):
     model.eval()
     if args.model != 'TRANSFORMER':
         hidden = model.init_hidden()
@@ -221,13 +243,14 @@ def get_loss_per_t(model, data):
     losses_per_t_ = torch.zeros((int(np.ceil(len(data)/model.batch_size)),model.seq_len))
 
     # LOOP THROUGH MINIBATCHES
+    first_batch = True
     for step, (x, y) in enumerate(ptb_iterator(data, model.batch_size, model.seq_len)):
         if args.model == 'TRANSFORMER':
             batch = Batch(torch.from_numpy(x).long().to(device))
             outputs = model.forward(batch.data, batch.mask).transpose(1,0)
         else:
             inputs = torch.from_numpy(x.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
-            outputs, hidden = model(inputs, hidden)
+            outputs, hidden, hidden_lists = model(inputs, hidden, compute_grads=True)
 
         targets = torch.from_numpy(y.astype(np.int64)).transpose(0, 1).contiguous().to(device)#.cuda()
         #tt = torch.squeeze(targets.view(-1, model.batch_size * model.seq_len))
@@ -242,12 +265,21 @@ def get_loss_per_t(model, data):
         ## For 5.1
         for j in range(model.seq_len):
             losses_per_t_[step,j] = loss_fn(outputs[j], targets[j]).data.item()
+        
+        # getting one batch for 5.2
+        if first_batch and args.model != 'Transformer':
+            first_batch = False
+            loss = loss_fn(outputs[model.seq_len-1], targets[model.seq_len-1])
+            gradients = torch.autograd.grad(loss, hidden_lists) 
+            gradients = [gradients[0][i] + gradients[1][i] for i in range(len(gradients[0]))]
+            gradients_norm = [torch.norm(gradients[i], 2) for i in range(len(gradients))]
+
 
     losses_per_t_ = losses_per_t_.mean(dim=0)
 
-    return losses_per_t_
+    return losses_per_t_, gradients_norm
 
-loss_per_t = get_loss_per_t(model, valid_data)
+loss_per_t, grad_norm = get_loss_batch_grad_per_t(model, valid_data)
 
 plt.style.use('ggplot')
 
@@ -257,3 +289,18 @@ plt.xlabel('time step')
 plt.ylabel('loss')
 plt.savefig(os.path.join(model_path_dir,'loss_per_t.png'))
 plt.close()
+plt.clf()
+
+
+n_words = list(range(1, 36))
+plt.plot(n_words, grad_norm)
+plt.xlabel('time-step in sequence')
+plt.ylabel('gradient of h_t wrt loss for 1 mini-batch')
+plt.savefig(os.path.join(model_path_dir,'gradients_norm.png'))
+plt.close()
+plt.clf()
+
+np.save(args.model+'.pkl', {'n_words':n_words, 
+                  'grad_norm':grad_norm})
+
+

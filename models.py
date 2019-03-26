@@ -165,7 +165,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
         h = h.cuda()
     return h
 
-  def forward(self, inputs, hidden):
+  def forward(self, inputs, hidden, compute_grads=False):
     # TODO ========================
     # Compute the forward pass, using nested python for loops.
     # The outer for loop should iterate over timesteps, and the 
@@ -205,12 +205,16 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     # convert its size for faster RNN
     input_tmp = embed_output
     hidden_data = []
+    hidden_list = []
     for layer in range(self.num_layers):
         input_tmp = self.rnn[layer](input_tmp, hidden[layer])
         hidden_data.append(input_tmp[-1,:,:])
+        hidden_list.append(input_tmp)
     hidden = torch.stack(hidden_data)
     input_tmp = self.dropout(input_tmp)
     logits = self.output(input_tmp)
+    if compute_grads:
+        return logits.view(self.seq_len, self.batch_size, self.vocab_size),hidden ,hidden_list
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
@@ -315,17 +319,21 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
         h = h.cuda()
     return h
 
-  def forward(self, inputs, hidden):
+  def forward(self, inputs, hidden, compute_grads = False):
     # TODO ========================
     embed_output = self.embedding(inputs) # nwords, batchsize , embed size
     input_tmp = embed_output
     hidden_data = []
+    hidden_list = []
     for layer in range(self.num_layers):
         input_tmp = self.gru[layer](input_tmp, hidden[layer])
         hidden_data.append(input_tmp[-1,:,:])
+        hidden_list.append(input_tmp)
     hidden = torch.stack(hidden_data)
     input_tmp = self.dropout(input_tmp)
     logits = self.output(input_tmp)
+    if compute_grads:
+        return logits.view(self.seq_len, self.batch_size, self.vocab_size),hidden ,hidden_list
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):

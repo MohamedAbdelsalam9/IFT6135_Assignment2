@@ -97,7 +97,8 @@ plt.legend(['Train PPl', 'Val PPl'])
 plt.xlabel('Wall Clock time (s)')
 plt.ylabel('Perplexity')
 plt.savefig(os.path.join(model_path_dir,'perplexity_wall_clock.png'))
-
+plt.close()
+plt.clf()
 
 params = ['model','num_layers','optimizer','initial_lr','seq_len','dp_keep_prob','batch_size','hidden_size','emb_size','num_epochs']
 model_summary_table = PrettyTable(params+['Train PPl','Val PPl'])
