@@ -252,7 +252,7 @@ loss_per_t = get_loss_per_t(model, valid_data)
 plt.style.use('ggplot')
 
 # plot train/val loss vs epoch
-plt.plot(range(len(loss_per_t)), loss_per_t)
+plt.plot(np.arange(len(loss_per_t)), loss_per_t.cpu().numpy())
 plt.xlabel('time step')
 plt.ylabel('loss')
 plt.savefig(os.path.join(model_path_dir,'loss_per_t.png'))
