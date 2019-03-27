@@ -246,7 +246,7 @@ model = model.to(device)
 print('Model loading')
 
 model.load_state_dict(torch.load(model_path,map_location=device))
-
+model.eval()
 hidden = model.init_hidden().to(device)
 for nseq in range(args.generate_seq_len):
     input = torch.randint(vocab_size, (1, 1), dtype=torch.long).to(device)
