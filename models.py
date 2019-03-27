@@ -218,7 +218,7 @@ class RNN(nn.Module): # Implement a stacked vanilla RNN with Tanh nonlinearities
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    temperature = 10
+    temperature = 1.5
     samples = np.zeros((generated_seq_len, input.size()[1])) 
     batch_size = input.size()[1]
     logits = input
@@ -337,7 +337,7 @@ class GRU(nn.Module): # Implement a stacked GRU RNN
     return logits.view(self.seq_len, self.batch_size, self.vocab_size), hidden
 
   def generate(self, input, hidden, generated_seq_len):
-    temperature = 10
+    temperature = 1.5
     samples = np.zeros((generated_seq_len, input.size()[1])) 
     batch_size = input.size()[1]
     logits = input
